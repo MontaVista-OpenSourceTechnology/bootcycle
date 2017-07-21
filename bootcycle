@@ -19,7 +19,7 @@
 CONF_FILE=/etc/bootcycle.conf
 
 # location of status file
-STATUS_FILE=/var/lib/misc/bootcycle.status
+STATUS_FILE=/var/misc/bootcycle.status
 
 # location of bootcycle log file
 LOG_FILE=/var/log/bootcycle.log
@@ -28,7 +28,7 @@ LOG_FILE=/var/log/bootcycle.log
 SHUTDOWN_CMD="/sbin/poweroff"
 
 # bootcycle wait command
-WAIT_CMD=/usr/sbin/bootcycle-wait
+WAIT_CMD=/sbin/bootcycle-wait
 
 # set defaults
 BCD_ENABLED=no
@@ -66,6 +66,8 @@ BCD_REBOOT_COUNT=$(($BCD_REBOOT_COUNT+1))
 if [ $BCD_REBOOT_COUNT -gt $BCD_MAX_REBOOTS ]; then
     # shut down the box
     echo BCD_REBOOT_COUNT=0 > $STATUS_FILE
+    # make init reopen /dev/initctl
+    kill -s SIGUSR1 1
     $SHUTDOWN_CMD
     exit
 fi
@@ -91,4 +93,4 @@ echo "bootcycle: System booted; auto-shutdown will occur after $REBOOTS_LEFT $RE
 echo "[`date "+%D %T"`] System booted; auto-shutdown will occur after $REBOOTS_LEFT $REBOOT_TEXT unless system stays up for at least $BCD_MIN_UPTIME $MINUTE_TEXT" >> $LOG_FILE
 
 # execute timer script
-$WAIT_CMD $((BCD_MIN_UPTIME*60)) &
+setsid $WAIT_CMD $((BCD_MIN_UPTIME*60)) &
