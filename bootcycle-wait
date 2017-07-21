@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# location of configuration file
+CONF_FILE=/etc/bootcycle.conf
+
+# location of status file
+STATUS_FILE=/var/lib/misc/bootcycle.status
+
+# location of bootcycle log file
+LOG_FILE=/var/log/bootcycle.log
+
+# bootcycle wait command
+WAIT_CMD=/usr/sbin/bootcycle-wait
+
+# set defaults
+BCD_MAX_REBOOTS=5
+BCD_MIN_UPTIME=10
+
+# override with configuration file if present
+if [ -e $CONF_FILE ]; then
+    source $CONF_FILE
+fi
+
+# wait for minimum uptime
+sleep $(($BCD_MIN_UPTIME*60))
+
+# if we made it this far, reset counter
+echo BCD_REBOOT_COUNT=0 > $STATUS_FILE
+
+MINUTE_TEXT=minutes
+if [ $BCD_MIN_UPTIME -eq 1 ]; then
+    MINUTE_TEXT=minute
+fi
+
+# report minimum uptime met
+echo "[`date "+%D %T"`] Minimum uptime of $BCD_MIN_UPTIME $MINUTE_TEXT met; boot counter reset" >> $LOG_FILE

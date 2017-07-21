@@ -1,0 +1,6 @@
+/var/log/bootcycle {
+    monthly
+    notifempty
+    missingok
+    nocompress
+}

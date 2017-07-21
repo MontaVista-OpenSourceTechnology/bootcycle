@@ -1,0 +1,74 @@
+.TH BOOTCYCLE 8 "August 9, 2002" Linux "User Manuals"
+.SH NAME
+bootcycle \- detects frequent reboots
+.SH SYNOPSIS
+.B bootcycle
+.SH DESCRIPTION
+.B bootcycle
+should be executed after each boot before the init scripts. If enabled, it
+checks the previous value of a boot counter. If the counter exceeds the
+configured maximum number of consecutive reboots,
+.B bootcycle
+resets the counter and shuts down the system. Otherwise, it increments the
+counter and sleeps until the configured minimum uptime has elapsed, then resets
+the counter to zero. Thus the counter only remains incremented if the system
+reboots within that time.
+
+This program is primarily useful in a complex network environment with many
+servers being managed. It is easier to identify that a machine is in need of
+service if it fails entirely. If it is stuck in a reboot cycle, administrators
+may assume that it is coming back online. When there is load sharing among
+other servers, it is better for the failed machine to shutdown rather than
+begin handling traffic only to drop it repeatedly.
+.SH FILES
+.I /etc/bootcycle.conf
+
+.RS
+This is the configuration file where three values can be set in
+.B KEY=value
+form. Lines beginning with # are ignored. The valid options are:
+
+.B BCD_ENABLED
+can be set to either
+.B yes
+or
+.B no
+(in lowercase). This is provided so that the
+system init scripts can always be configured to call
+.B bootcycle
+on boot, and whether it really does anything can be affected here.
+The default is no.
+
+.B BCD_MAX_REBOOTS
+should be set to a number >= 1. This is the maximum number of times the system
+will be allowed to reboot without staying up for the minimum uptime, before
+.B bootcycle
+will automatically shut the system down.
+The default is 5.
+
+.B BCD_MIN_UPTIME
+should be set to a number of minutes. If the system remains up for this long
+after
+.B bootcycle
+is executed, the boot counter will be reset to zero.
+The default is 10.
+.RE
+
+.I /var/lib/misc/bootcycle.status
+
+.RS
+This is the data file where the boot counter is stored, in the format
+BCD_REBOOT_COUNT=<number>. The number will range from zero to the configured
+maximum number of reboots. Generally this will be zero.
+.RE
+
+.I /var/log/bootcycle.log
+
+.RS
+This is a log file specific to
+.B bootcycle
+that records when the counter is incremented or reset. When an actual shutdown
+occurs, the log file will not be updated in order to ensure nothing prevents
+the shutdown from being successful. The last message in the log file before a
+shutdown will show that there is only one allowed reboot remaining.
+.RE

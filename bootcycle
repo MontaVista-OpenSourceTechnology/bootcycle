@@ -1,0 +1,94 @@
+#!/bin/bash
+
+#
+# Boot Cycle Detection
+#
+# This script should be executed each time the system boots. It maintains a
+# counter of consecutive reboots. If the system never remains online for the
+# configured 'minimum uptime', then when the configured 'maximum reboots' is
+# exceeded, the system will shut down.
+#
+# The idea is to detect when the system has some failure that is causing it to
+# reboot endlessly. The danger is that the system may be advertising service,
+# taking on clients, and then immediately rebooting, over and over again. It is
+# preferable for the system to fail entirely and shut itself down so that the
+# problem can be quickly detected.
+#
+
+# location of configuration file
+CONF_FILE=/etc/bootcycle.conf
+
+# location of status file
+STATUS_FILE=/var/lib/misc/bootcycle.status
+
+# location of bootcycle log file
+LOG_FILE=/var/log/bootcycle.log
+
+# shutdown command
+SHUTDOWN_CMD="/sbin/poweroff"
+
+# bootcycle wait command
+WAIT_CMD=/usr/sbin/bootcycle-wait
+
+# set defaults
+BCD_ENABLED=no
+BCD_MAX_REBOOTS=5
+BCD_MIN_UPTIME=10
+BCD_REBOOT_COUNT=0
+
+# override with configuration file if present
+if [ -e $CONF_FILE ]; then
+    source $CONF_FILE
+fi
+
+# exit unless feature enabled
+if [ "$BCD_ENABLED" != "yes" ]; then
+    exit
+fi
+
+# try creating status file if it does not exist
+if [ ! -e $STATUS_FILE ]; then
+    echo BCD_REBOOT_COUNT=0 > $STATUS_FILE
+fi
+
+# report error if status file still does not exist
+if [ ! -w $STATUS_FILE ]; then
+    echo "bootcycle: Unable to write to status file $STATUS_FILE"
+    echo "[`date "+%D %T"`] Unable to write to status file $STATUS_FILE" >> $LOG_FILE
+else
+    source $STATUS_FILE
+fi
+
+# increment the counter
+BCD_REBOOT_COUNT=$(($BCD_REBOOT_COUNT+1))
+
+# check if max reboots exceeded
+if [ $BCD_REBOOT_COUNT -gt $BCD_MAX_REBOOTS ]; then
+    # shut down the box
+    echo BCD_REBOOT_COUNT=0 > $STATUS_FILE
+    $SHUTDOWN_CMD
+    exit
+fi
+
+# otherwise update counter and start timer
+echo BCD_REBOOT_COUNT=$BCD_REBOOT_COUNT > $STATUS_FILE
+
+REBOOTS_LEFT=$((BCD_MAX_REBOOTS-$BCD_REBOOT_COUNT+1))
+REBOOT_TEXT=reboots
+if [ $REBOOTS_LEFT -eq 1 ]; then
+    REBOOT_TEXT=reboot
+fi
+
+MINUTE_TEXT=minutes
+if [ $BCD_MIN_UPTIME -eq 1 ]; then
+    MINUTE_TEXT=minute
+fi
+
+# report reboots remaining
+echo "bootcycle: System booted; auto-shutdown will occur after $REBOOTS_LEFT $REBOOT_TEXT unless system stays up for at least $BCD_MIN_UPTIME $MINUTE_TEXT"
+
+# log shutdown warning
+echo "[`date "+%D %T"`] System booted; auto-shutdown will occur after $REBOOTS_LEFT $REBOOT_TEXT unless system stays up for at least $BCD_MIN_UPTIME $MINUTE_TEXT" >> $LOG_FILE
+
+# execute timer script
+$WAIT_CMD $((BCD_MIN_UPTIME*60)) &
